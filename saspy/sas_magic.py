@@ -18,6 +18,7 @@ from IPython.display import HTML
 import IPython.core.magic as ipym
 import re
 from saspy.SASLogLexer import SASLogStyle, SASLogLexer
+from saspy import SASsession
 from pygments.formatters import HtmlFormatter
 from pygments import highlight
 
@@ -53,23 +54,32 @@ class SASMagic(ipym.Magics):
                 set sashelp.cars;
             run;
         """
+
+        if len(line) and line in self.shell.user_ns: #session supplied
+            _mva = self.shell.user_ns[line]
+            if type(_mva) == SASsession:
+                mva = _mva
+            else:
+                return 'Invalid SAS Session object supplied'           
+        else:
+            mva = self.mva
         
         saveOpts="proc optsave out=__jupyterSASKernel__; run;"
         restoreOpts="proc optload data=__jupyterSASKernel__; run;"
         if len(line)>0:  # Save current SAS Options
-            self.mva.submit(saveOpts)
+            mva.submit(saveOpts)
 
         if line.lower()=='smalllog':
-            self.mva.submit("options nosource nonotes;")
+            mva.submit("options nosource nonotes;")
 
         elif line is not None and line.startswith('option'):
-            self.mva.submit(line + ';')
+            mva.submit(line + ';')
 
-        res = self.mva.submit(cell)
+        res = mva.submit(cell)
         dis = self._which_display(res['LOG'], res['LST'])
 
         if len(line)>0:  # Restore SAS options 
-            self.mva.submit(restoreOpts)
+            mva.submit(restoreOpts)
 
         return dis
 
